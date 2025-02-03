@@ -166,7 +166,7 @@ def find_least_significant_keywords(text, num_keywords):
     # Get the AI model's response (assuming the AI API client is available)
     try:
         completion = client.chat.completions.create(
-            model="deepseek-ai/DeepSeek-R1",
+            model="meta-llama/Meta-Llama-3-8B-Instruct",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=100
         )
