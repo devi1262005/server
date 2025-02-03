@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 import os
 from werkzeug.utils import secure_filename
@@ -11,7 +10,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-app= Flask(__name__)
+app = Flask(__name__)
 
 # Directory to temporarily store uploaded files
 UPLOAD_FOLDER = './uploads'
@@ -86,6 +85,14 @@ technical_keywords = {
     'real-time', 'websockets', 'video', 'calls', 'full-stack', 'mongo', 'sql', 'html', 'css', 'java', 'kotlin',
     'docker', 'javascript', 'nodejs', 'cloud', 'python', 'react', 'angular', 'vue', 'typescript', 'graphql'
 }
+
+def call_ai_model(prompt):
+    try:
+        response = client.text_generation(prompt=prompt, max_new_tokens=100)
+        return response.strip().split(',')
+    except Exception as e:
+        raise ValueError(f"Error during AI completion: {str(e)}")
+
 
 def process_resume(file_path):
     extracted_text = extract_text_from_file(file_path)
