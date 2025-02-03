@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import os
+from waitress import serve
 from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
 from docx import Document
@@ -226,4 +227,4 @@ def extract_text_from_file(file_path):
         raise ValueError("Unsupported file type")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    serve(app, host="0.0.0.0", port=5000)
