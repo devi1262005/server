@@ -1,5 +1,5 @@
 
-
+python-docx
 Flask==2.2.2
 Flask-Cors==5.0.0
 Flask-SocketIO==5.3.7
