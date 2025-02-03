@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 from flask import Flask, request, jsonify
 import os
 from werkzeug.utils import secure_filename
@@ -459,4 +459,3 @@ def extract_text_from_file(file_path):
 
 if __name__ == '__main__':
     serve(app, host="0.0.0.0", port=5000)
->>>>>>> d61cdd9490192b7a93acf1cacd644be6c1c4de34
