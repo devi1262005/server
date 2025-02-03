@@ -1,1 +1,9 @@
+<<<<<<< HEAD
+Flask==2.1.1
+PyPDF2==1.26.0
+docx==0.2.5
+huggingface_hub==0.15.1
+pytz>=2024.1  # Updated version for Python 3.11
+=======
 
+>>>>>>> d61cdd9490192b7a93acf1cacd644be6c1c4de34
