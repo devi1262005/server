@@ -23,8 +23,8 @@ ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Initialize the Hugging Face Inference Client using the API key from the environment
-client = InferenceClient(api_key=os.getenv("HF_API_KEY"))  # Using the value from .env file
+# Initialize Hugging Face Inference Client
+client = InferenceClient(api_key=os.getenv("HF_API_KEY"))
 
 @app.route('/get_tags', methods=['POST'])
 def get_tags():
@@ -55,36 +55,13 @@ def get_tags():
             return jsonify({"error": "No text provided"}), 400
 
         try:
-            prompt = f"Extract all keywords from the Skills, Employment, and Education sections: {user_text}."
-            keywords = call_ai_model(prompt)
-            return jsonify({"keywords": keywords}), 200
+            extracted_keywords = process_text(user_text)
+            return jsonify({"keywords": extracted_keywords}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
     return jsonify({"error": "No valid input provided"}), 400
 
-# Unwanted text array
-UNWANTED_TEXT = [
-    "here", "are", "the", "keywords", "from", "text", "separated", 
-    "by", "commas", "without", "numbers", "greetings", "or", 
-    "additional", "text", "and", "only", "reject", "uneccessary", "words", "Here are the 100 keywords extracted from the text:" 
-    "strictly technical and devoid of non-technical words or phrases","Here are the extracted keywords",
-    "not", "like", "technical", "tag", "extracted","commas:", ":", "code", "50","text:", "<placeholder>"
-]
-common_non_technical_words = {
-    'and', 'about', 'here', 'currently', 'new', 'exploring', 'projects', 'diving', 'into', 
-    'development', 'calls', 'website', 'mobile', 'app', 'programming', 'tech', 
-    'meeting', 'language', 'backend', 'frontend', 'team', 'members', 'hackathon', 'freelancing',
-    'contact', 'email', 'number', 'address', 'location', 'number', 
-}
-
-# List of strictly technical terms to prioritize (could be expanded as needed)
-technical_keywords = {
-    'flask', 'dart', 'aws', 'artificial intelligence', 'webrtc', 'firestore', 'flutter', 'mongodb', 
-    'sqlite', 'mysql', 'php', 'firebase', 'c++', 'python', 'nosql', 'api', 'stun', 'turn', 'agenda',
-    'real-time', 'websockets', 'video', 'calls', 'full-stack', 'mongo', 'sql', 'html', 'css', 'java', 'kotlin',
-    'docker', 'javascript', 'nodejs', 'cloud', 'python', 'react', 'angular', 'vue', 'typescript', 'graphql'
-}
 
 def call_ai_model(prompt):
     try:
@@ -96,19 +73,28 @@ def call_ai_model(prompt):
 
 def process_resume(file_path):
     extracted_text = extract_text_from_file(file_path)
+    return process_text(extracted_text)
+
+
+def process_text(text):
     prompt = (
-        f"Extract one hundred keywords from the following text. Keywords must only come from the text provided. "
-        f"Avoid greetings, numbers, or additional text. Strictly reject non-technical words or phrases in {UNWANTED_TEXT} and anything similar to {UNWANTED_TEXT} please do not use variants to evade it. Please do not consider greetings in keywords."
-        f"Provide keywords separated by commas: {extracted_text}."
-        f"Please do not greet the user, or providing starting prompts, just be to the point, no greeting, no interaction."
+        "You are an advanced AI system specialized in extracting only relevant, strictly technical keywords from resumes. "
+        "Extract precisely 100 keywords from the given text, strictly limited to technical skills, programming languages, "
+        "frameworks, libraries, cloud services, tools, methodologies, and industry-specific terms. "
+        "Do not include greetings, numbers, personal information, job titles, soft skills, or general words like 'development,' "
+        "'technology,' 'team,' or 'project.' Avoid any introductory phrases or summaries. "
+        "Respond only with a comma-separated list of the extracted technical keywords without additional words or explanations. "
+        "The extracted keywords must strictly appear in the given text and should not be guessed or inferred.\n\n"
+        f"Text:\n{text}"
     )
-    keywords = call_ai_model(prompt)  # Assuming this returns a list
+
+    keywords = call_ai_model(prompt)  # Get response from AI
     
     # Clean up keywords
     cleaned_keywords = [
-        word.strip(",").strip()  # Remove trailing commas and extra whitespace
+        word.strip(",").strip()
         for word in keywords
-        if word.strip() and word.lower() not in UNWANTED_TEXT
+        if word.strip()
     ]
     
     # Ensure 100 unique keywords
@@ -116,94 +102,31 @@ def process_resume(file_path):
     if len(unique_keywords) > 100:
         return unique_keywords[:100]
     elif len(unique_keywords) < 100:
-        # Find the least significant words in the extracted text to pad the result
-        additional_keywords = find_least_significant_keywords(extracted_text, 100 - len(unique_keywords))
+        additional_keywords = get_non_significant_keywords(text, 100 - len(unique_keywords))
         return unique_keywords + additional_keywords
     return unique_keywords
 
-def clean_keywords(keywords):
-    """
-    Filters out non-technical and irrelevant terms and retains only strictly technical keywords.
-    """
-    cleaned_keywords = []
-
-    for keyword in keywords:
-        # Clean keyword by stripping spaces and converting to lowercase
-        keyword = keyword.strip().lower()
-
-        # Ignore common non-technical words
-        if keyword in common_non_technical_words:
-            continue
-
-        # Only consider keywords that are in the list of technical keywords
-        if keyword in technical_keywords:
-            cleaned_keywords.append(keyword)
-
-        # Ignore irrelevant patterns (like emails, locations, etc.)
-        elif re.search(r'\b\w+@\w+\.\w+', keyword):  # if it's an email address
-            continue
-        elif re.search(r'\d{3,}', keyword):  # if it's a number or numeric phrase
-            continue
-        elif len(keyword) > 2 and keyword.isalpha():  # check that keyword is at least 3 characters and contains only letters
-            # Add only technical or potentially technical words
-            cleaned_keywords.append(keyword)
-
-    # Return unique cleaned keywords
-    return list(set(cleaned_keywords))
-
-def find_least_significant_keywords(text, num_keywords):
-    """
-    Extracts a specified number of technical keywords from the provided text.
-    """
-    prompt = (
-       f"Your role is to be a hiring manager and pick out key phrases, in a resume."
-        f"Extract one hundred keywords from the following text. Keywords must only come from the text provided. "
-        f"Avoid greetings, numbers, or additional text. Strictly reject non-technical words or phrases in {UNWANTED_TEXT} and anything similar to {UNWANTED_TEXT} please do not use variants to evade it. Please do not consider greetings in keywords."
-        f"Provide keywords separated by commas"
-        f"Please do not greet the user, or providing starting prompts, just be to the point, no greeting, no interaction."
-        f"Important! Do not repeat the prompt back avoid {UNWANTED_TEXT}, do not say anything in quotes, only pick the words a recruiter would."
-    )
-
-    # Get the AI model's response (assuming the AI API client is available)
-    try:
-        completion = client.chat.completions.create(
-            model="meta-llama/Meta-Llama-3-8B-Instruct",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=100
-        )
-        # Extract the keywords from the AI response
-        keywords = completion['choices'][0]['message']['content'].strip().split(',')
-
-        # Clean and filter the keywords
-        cleaned_keywords = clean_keywords(keywords)
-
-        # If the number of unique keywords exceeds the desired count, limit the list
-        if len(cleaned_keywords) > num_keywords:
-            return cleaned_keywords[:num_keywords]
-        elif len(cleaned_keywords) < num_keywords:
-            # Return additional non-significant terms (such as common terms)
-            additional_keywords = get_non_significant_keywords(text, num_keywords - len(cleaned_keywords))
-            return cleaned_keywords + additional_keywords
-
-        return cleaned_keywords
-
-    except Exception as e:
-        raise ValueError(f"Error during AI completion: {str(e)}")
 
 def get_non_significant_keywords(text, num_keywords):
-    # Use a basic AI model or fallback logic to get common, non-significant terms
+    """
+    Extracts additional words from the text if there are not enough technical keywords.
+    """
     words = [word.strip(",.") for word in text.split() if len(word.strip(",.")) > 2]
     return words[:num_keywords]
+
 
 def extract_text_from_pdf(file_path):
     try:
         reader = PdfReader(file_path)
         text = ""
         for page in reader.pages:
-            text += page.extract_text()
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted
         return text
     except Exception as e:
         raise ValueError(f"Error extracting text from PDF: {str(e)}")
+
 
 def extract_text_from_docx(file_path):
     try:
@@ -215,12 +138,14 @@ def extract_text_from_docx(file_path):
     except Exception as e:
         raise ValueError(f"Error extracting text from DOCX: {str(e)}")
 
+
 def extract_text_from_txt(file_path):
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return file.read()
     except Exception as e:
         raise ValueError(f"Error extracting text from TXT: {str(e)}")
+
 
 def extract_text_from_file(file_path):
     """
@@ -235,5 +160,6 @@ def extract_text_from_file(file_path):
     else:
         raise ValueError("Unsupported file type")
 
+
 if __name__ == '__main__':
-    app.run(debug='0.0.0.0',port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
