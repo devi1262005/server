@@ -1,6 +1,6 @@
 Flask==2.1.1
 PyPDF2==1.26.0
-docx==0.2.5
-huggingface_hub==0.15.1
+python-docx==0.8.11
 pytz>=2024.1
 waitress==2.1.0
+huggingface-hub>=0.23.2
