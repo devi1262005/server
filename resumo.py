@@ -1,13 +1,11 @@
-
+import os
+import re
 from flask import Flask, request, jsonify
-import os  
-from waitress import serve
 from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
 from docx import Document
 from huggingface_hub import InferenceClient
-import re
-from dotenv import load_dotenv
+
 
 # Load environment variables from .env file
 load_dotenv()
