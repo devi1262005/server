@@ -156,10 +156,12 @@ def find_least_significant_keywords(text, num_keywords):
     Extracts a specified number of technical keywords from the provided text.
     """
     prompt = (
-        f"Extract {num_keywords} strictly technical keywords from the following text. "
-        f"Do not include common, non-technical, or irrelevant words or phrases. "
-        f"Only include technical terms related to programming, tools, technologies, frameworks, or coding languages. "
-        f"Provide only keywords, separated by commas:\n\n{text}."
+       f"Your role is to be a hiring manager and pick out key phrases, in a resume."
+        f"Extract one hundred keywords from the following text. Keywords must only come from the text provided. "
+        f"Avoid greetings, numbers, or additional text. Strictly reject non-technical words or phrases in {UNWANTED_TEXT} and anything similar to {UNWANTED_TEXT} please do not use variants to evade it. Please do not consider greetings in keywords."
+        f"Provide keywords separated by commas: {extracted_text}."
+        f"Please do not greet the user, or providing starting prompts, just be to the point, no greeting, no interaction."
+        f"Important! Do not repeat the prompt back avoid {UNWANTED_TEXT}, do not say anything in quotes, only pick the words a recruiter would."
     )
 
     # Get the AI model's response (assuming the AI API client is available)
