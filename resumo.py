@@ -87,6 +87,14 @@ technical_keywords = {
     'docker', 'javascript', 'nodejs', 'cloud', 'python', 'react', 'angular', 'vue', 'typescript', 'graphql'
 }
 
+def call_ai_model(prompt):
+    try:
+        response = client.text_generation(prompt=prompt, max_new_tokens=100)
+        return response.strip().split(',')
+    except Exception as e:
+        raise ValueError(f"Error during AI completion: {str(e)}")
+
+
 def process_resume(file_path):
     extracted_text = extract_text_from_file(file_path)
     prompt = (
