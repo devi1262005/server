@@ -5,6 +5,10 @@ from PyPDF2 import PdfReader
 from docx import Document
 from huggingface_hub import InferenceClient
 import re
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -19,8 +23,8 @@ ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Initialize the Hugging Face Inference Client
-client = InferenceClient(api_key="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")  # Replace with your Hugging Face API token
+# Initialize the Hugging Face Inference Client using the API key from the environment
+client = InferenceClient(api_key=os.getenv("HF_API_KEY"))  # Using the value from .env file
 
 @app.route('/get_tags', methods=['POST'])
 def get_tags():
@@ -63,7 +67,7 @@ def get_tags():
 UNWANTED_TEXT = [
     "here", "are", "the", "keywords", "from", "text", "separated", 
     "by", "commas", "without", "numbers", "greetings", "or", 
-    "additional", "text", "and", "only", "reject", "uneccessary", "words", "Here are the 100 keywords extracted from the text:"
+    "additional", "text", "and", "only", "reject", "uneccessary", "words", "Here are the 100 keywords extracted from the text:" 
     "strictly technical and devoid of non-technical words or phrases","Here are the extracted keywords",
     "not", "like", "technical", "tag", "extracted","commas:", ":", "code", "50","text:", "<placeholder>"
 ]
@@ -81,12 +85,13 @@ technical_keywords = {
     'real-time', 'websockets', 'video', 'calls', 'full-stack', 'mongo', 'sql', 'html', 'css', 'java', 'kotlin',
     'docker', 'javascript', 'nodejs', 'cloud', 'python', 'react', 'angular', 'vue', 'typescript', 'graphql'
 }
+
 def process_resume(file_path):
     extracted_text = extract_text_from_file(file_path)
     prompt = (
         f"Extract one hundred keywords from the following text. Keywords must only come from the text provided. "
         f"Avoid greetings, numbers, or additional text. Strictly reject non-technical words or phrases in {UNWANTED_TEXT} and anything similar to {UNWANTED_TEXT} please do not use variants to evade it. Please do not consider greetings in keywords."
-        f"Provide keywords separated by commas: {extracted_text}"
+        f"Provide keywords separated by commas: {extracted_text}."
         f"Please do not greet the user, or providing starting prompts, just be to the point, no greeting, no interaction."
     )
     keywords = call_ai_model(prompt)  # Assuming this returns a list
@@ -107,8 +112,6 @@ def process_resume(file_path):
         additional_keywords = find_least_significant_keywords(extracted_text, 100 - len(unique_keywords))
         return unique_keywords + additional_keywords
     return unique_keywords
-
-    
 
 def clean_keywords(keywords):
     """
@@ -148,8 +151,7 @@ def find_least_significant_keywords(text, num_keywords):
         f"Extract {num_keywords} strictly technical keywords from the following text. "
         f"Do not include common, non-technical, or irrelevant words or phrases. "
         f"Only include technical terms related to programming, tools, technologies, frameworks, or coding languages. "
-        f"Provide only keywords, separated by commas:\n\n{text}"
-        f"Ignore any manner of greeting similar to {UNWANTED_TEXT}. Ignore non-keywords, sentences, starting with 'here'"
+        f"Provide only keywords, separated by commas:\n\n{text}."
     )
 
     # Get the AI model's response (assuming the AI API client is available)
@@ -178,7 +180,6 @@ def find_least_significant_keywords(text, num_keywords):
     except Exception as e:
         raise ValueError(f"Error during AI completion: {str(e)}")
 
-
 def get_non_significant_keywords(text, num_keywords):
     # Use a basic AI model or fallback logic to get common, non-significant terms
     words = [word.strip(",.") for word in text.split() if len(word.strip(",.")) > 2]
@@ -204,29 +205,25 @@ def extract_text_from_docx(file_path):
     except Exception as e:
         raise ValueError(f"Error extracting text from DOCX: {str(e)}")
 
+def extract_text_from_txt(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+    except Exception as e:
+        raise ValueError(f"Error extracting text from TXT: {str(e)}")
+
 def extract_text_from_file(file_path):
+    """
+    Determines the file type and extracts text accordingly.
+    """
     if file_path.endswith('.pdf'):
         return extract_text_from_pdf(file_path)
     elif file_path.endswith('.docx'):
         return extract_text_from_docx(file_path)
     elif file_path.endswith('.txt'):
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return file.read()
+        return extract_text_from_txt(file_path)
     else:
         raise ValueError("Unsupported file type")
 
-def call_ai_model(prompt, max_tokens=100):
-    # Prepare the message for the Hugging Face model
-    messages = [{"role": "user", "content": prompt}]
-    completion = client.chat.completions.create(
-        model="meta-llama/Meta-Llama-3-8B-Instruct",  # Use your model here
-        messages=messages,
-        max_tokens=max_tokens
-    )
-    if completion and 'choices' in completion:
-        return completion['choices'][0]['message']['content'].split(',')[:20]  # Extract top 20 keywords
-    else:
-        raise ValueError("Failed to generate keywords from the model")
-
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)
